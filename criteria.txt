@@ -1,0 +1,127 @@
+Response to criteria
+
+1. Clear and distinct package/class/interface/method responsibilities
+    I decided that since the whole program is for a rover, that all packages 
+    should be within edu.curtin.comp2003.rover.
+    This means the API package appears inside edu.curtin.comp2003.rover.API
+    I divided the rest of the program into controllers, events, observers and 
+    states. 
+    The states represent a state the program is in, and manage how to process
+    different situations in a state-specific way. The observers are listening 
+    to the state classes and each other. In order to appropriately de-couple 
+    these classes, they communicate via events. The events are 1 of three 
+    types, 
+        - StateEvent: Represents potential changes in state
+        - CommsEvent: Involves communication to or from earth
+        - RoverEvent: Require the rover to perform some action
+    These events have a corresponding type of observer associated with them. 
+    This allows them to call a specific method in that type of observer to deal
+    with the event. This means all observers can treat events in the same way
+    and simply ask the event to act on itself, relying on the event to call the
+    appropriate method. This allows a method of chaining, where an event can 
+    call an observer which may trigger another event calling the relavant 
+    observer until all relevant action is taken. This means the observers do 
+    not need a back-reference to the state but can chain information on until 
+    it has been fully dealt with.
+    The controller package takes care of orchestrating these objects and the
+    flow of the program. The injector takes care of setting up all the object 
+    relationships, and the event loop ensures the repetitive querying required.
+    The state controller looks after the 2 different states (rover state and 
+    visibility state) It controls communication with the stateObserver and the
+    rover state. It also contains the observers used by the roverState so that
+    they are not duplicated in each state object.
+
+2. Appropriate Error handling
+    Error handling is only really required when validating an incoming command.
+    This is achieved throwing a custom InvalidCommandException when it doesn't
+    meet the required format. This includes catching other errors that occur
+    during validation and instead throwing an InvalidCommandException. This 
+    InvalidCommandException is caught in the overall validateComand method and
+    ensures an error message is sent back to earth.
+
+3. Implementation of dependency injection
+    All dependencies on other classes are injected via the constructor or set 
+    up afterwards via an initialisation method. This is all taken care of in 
+    the Injector class. The result of this is that some constructors take many
+    parameters due to all the required events that object might need. This also
+    means events that store information need to have that information set and 
+    reset every time they are used rather than enforcing the information is 
+    passed upon construction.
+
+4. Use of polymorphism #1 (State Pattern)
+    The state pattern was used to represent the different states the rover 
+    could be in. The stateController acted as the context for the states and 
+    controlled the communication between observers and the state. I 
+    implemented RoverState to be abstract rather than an interface since it 
+    allowed me to not only require sub-classes have particular methods, but 
+    also allows methods to perform common functionality, that can be overridden
+    to perform additional functionality, but don't have to be overridden if no 
+    additional functionality is required. 
+
+5. Use of polymorphism #2 (Observer Pattern)
+    The observer pattern was used to de-couple packages and classes and allows
+    for a chaining method to deal with information without storing a 
+    back-reference. There are 3 types of observers that all extend the abstract
+    observer class. The class is abstract since it doesn't make sense to exist 
+    on its own, but it has a common method all observer sub-classes can use.
+    the 3 observer types correlate to the 3 event types, and are responsible 
+    for dealing with the corresponding event types. This is enforced using 
+    generics (see point 7). In order to allow chaining, these observers also 
+    act as subjects for the 1 or more types of the other observers (the 
+    stateObserver does this indirectly via the stateController). The add and 
+    remove observer methods are supplied and may be needed in the future, but 
+    are not currently used since, all observers are injected in through the 
+    constructor and no observers need to be removed.
+
+    NOTE: polymorphism was used for more than just these 2 I decided to discuss 
+    here, such as the template method pattern within the state classes and the 
+    strategy pattern for the RoverObservers
+
+6. UML
+    - UML was done using draw.io
+
+    - There are a lot of classes, so it might look a bit chaotic, please be kind.
+    
+    - To show generics, I copied what it looks like in jave code, placing the 
+        genric in <> behind the classname
+
+    - Often the name of the parameter is left off to preserve space.
+
+    - Underlined items are static.
+
+    - No associations are shown from Injector, but really it associates every 
+        concrete object.
+
+    - InvalidCommandException is not shown
+
+    - Associations to events aren't shown since that would involve many 
+        cross-cutting lines. They can all be found as private or protected 
+        classfields
+
+7. Bonus: generics
+    Generics were used for the 3 types of event and observers to enforce any 
+    implementations of these types use the correct corresponding observer or 
+    event. This is done by making the Event interface include a generic that 
+    extends Observer, each of the 3 event types specify a specify type of 
+    observer all the sub-classes must use. This means that any implementation
+    of an event of a particular type can be safely used by the correct observer 
+    type. This is important since events require knowledge of what events are 
+    inside the observer and so it is important to have the right observer for
+    a given event type.
+    This is similarly enforced in the Observers. The abstract Observer class 
+    enforces the use of a sub-type of Event, with the 3 observer types 
+    specifying which type of events they accept. This means that the type 
+    validation is validated both ways. An observer cannot accept an incorrect
+    event and an event cannot accept an incorrect observe.
+    This does lead to a problem that causes the compiler to issue a warning,
+    the generic observer parameter for event cannot be parameterised with an
+    event since that would need to be parameterised with an observer and so on
+    ad infinitum. Similarly the generic event type in Observer cannot be 
+    parameterised.
+    This contributed to code re-use by overcoming a problem I had. In java an
+    abstract method cannot be overridden using a more specific version of the 
+    parameter specified in the superclass/interface. Generics allowed me to 
+    ensure that the method existed in the sub-classes and that it was an 
+    implementation of the correct class. This means that in each observer and
+    event type I did not have to create a new method but could re-use the one 
+    in the abse Event interface and observer class.

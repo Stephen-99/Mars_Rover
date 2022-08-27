@@ -1,0 +1,6 @@
+{
+    "java.project.sourcePaths": [
+        "edu/curtin/comp2003/rover",
+        "edu"
+    ]
+}
